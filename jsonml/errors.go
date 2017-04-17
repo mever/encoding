@@ -9,15 +9,22 @@ import (
 
 const debug = false
 
-func IsParseError(err error) bool {
-	if de, ok := err.(decodeError); ok && de.parse {
-		return true
-	}
+type parseError error
 
-	return false
+type tokenError error
+
+func IsParseError(err error) bool {
+	_, answer := err.(parseError)
+	return answer
+}
+
+func IsTokenError(err error) bool {
+	_, answer := err.(tokenError)
+	return answer
 }
 
 func PrintErrorTrace(err error) {
+	fmt.Println(err.Error())
 	if err, ok := err.(stackTracer); ok {
 		for _, f := range err.StackTrace() {
 			fmt.Printf("%+s:%d\n", f, f)
@@ -25,17 +32,17 @@ func PrintErrorTrace(err error) {
 	}
 }
 
-func parseError(expected string, actual json.Token) error {
-	return decodeError{parse: true, err: errors.Errorf("Expected %s, but got: %s", expected, actual)}
+func newParseError(expected string, actual json.Token) error {
+	return parseError(errors.Errorf("Expected '%s' but got '%s'", expected, actual))
 }
 
-func tokenError(err error) error {
+func newTokenError(err error) error {
 	if err == io.EOF {
 		return errors.New("Unexpected end of input stream")
 	}
 
 	if err != nil {
-		return errors.WithStack(err)
+		return tokenError(errors.WithStack(err))
 	}
 
 	return nil

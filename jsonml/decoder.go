@@ -8,21 +8,7 @@ import (
 	"io"
 )
 
-type decodeError struct {
-	parse bool
-	gen   bool
-	err   error
-}
-
-func (e decodeError) Error() string {
-	if e.parse {
-		return fmt.Sprintf("Parse error: %s", e.err.Error())
-	}
-
-	return e.err.Error()
-}
-
-// A Decoder represents an JSONML parser reading a particular input stream.
+// A Decoder represents a JSONML parser reading a particular input stream.
 // The parser assumes that its input is encoded in UTF-8.
 type Decoder struct {
 	jsonDec *json.Decoder
@@ -39,11 +25,11 @@ func NewDecoder(r io.Reader) *Decoder {
 func (d *Decoder) WriteXml(e *xml.Encoder) error {
 	t, err := d.jsonDec.Token()
 	if err != nil {
-		return tokenError(err)
+		return newTokenError(err)
 	}
 
 	if del, ok := t.(json.Delim); !ok || string(del) != "[" {
-		return parseError("[", t)
+		return newParseError("[", t)
 	}
 
 	d.xmlEnc = e
@@ -76,14 +62,14 @@ func (d *Decoder) convertElement(t json.Token) error {
 				if tagName, ok := tagNameToken.(string); ok {
 					return d.convertStartTag(tagName)
 				} else {
-					return parseError("tag-name", tagNameToken)
+					return newParseError("tag-name", tagNameToken)
 				}
 			} else {
 				return errors.WithStack(err)
 			}
 		}
 	}
-	return parseError("[ or textNode", t)
+	return newParseError("[ or textNode", t)
 }
 
 func (d *Decoder) convertElementList(t json.Token) error {
@@ -91,7 +77,7 @@ func (d *Decoder) convertElementList(t json.Token) error {
 		var err error
 		t, err = d.jsonDec.Token()
 		if err != nil {
-			return tokenError(err)
+			return newTokenError(err)
 		}
 	}
 
@@ -127,7 +113,7 @@ func (d *Decoder) convertElementList(t json.Token) error {
 func (d *Decoder) convertStartTag(tagName string) error {
 	t, err := d.jsonDec.Token()
 	if err != nil {
-		return tokenError(err)
+		return newTokenError(err)
 	}
 
 	if debug {
@@ -162,7 +148,7 @@ func (d *Decoder) convertTextNode(t string) error {
 func (d *Decoder) getAttributes() ([]xml.Attr, error) {
 	t, err := d.jsonDec.Token()
 	if err != nil {
-		return []xml.Attr{}, tokenError(err)
+		return []xml.Attr{}, newTokenError(err)
 	}
 
 	if del, ok := t.(json.Delim); ok && string(del) == "}" {
@@ -182,18 +168,18 @@ func (d *Decoder) getAttributes() ([]xml.Attr, error) {
 		return append(attributes, a), err
 	}
 
-	return []xml.Attr{}, parseError("} or attribute name", t)
+	return []xml.Attr{}, newParseError("} or attribute name", t)
 }
 
 func (d *Decoder) getAttrValue() (string, error) {
 	t, err := d.jsonDec.Token()
 	if err != nil {
-		return "", tokenError(err)
+		return "", newTokenError(err)
 	}
 
 	if s, ok := t.(string); ok {
 		return s, nil
 	} else {
-		return "", parseError("string (others are not yet implemented!)", t)
+		return "", newParseError("string (others are not yet implemented!)", t)
 	}
 }
