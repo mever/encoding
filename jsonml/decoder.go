@@ -35,11 +35,11 @@ func (d *Decoder) WriteXml(e *xml.Encoder) error {
 	d.xmlEnc = e
 	e.Indent(d.Prefix, d.Indent)
 	err = d.convertElement(t)
-	if err == io.EOF {
-		return nil
-	} else {
-		return err
+	if err == io.EOF || err == nil {
+		return e.Flush()
 	}
+
+	return err
 }
 
 func (d *Decoder) convertElement(t json.Token) error {
